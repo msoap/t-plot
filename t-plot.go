@@ -16,10 +16,12 @@ import (
 	"unicode/utf8"
 
 	"github.com/msoap/byline"
+	"golang.org/x/term"
 )
 
 const (
 	defaultTermWidth = 80
+	maxTermWidth     = 130
 )
 
 type opt struct {
@@ -133,9 +135,15 @@ func renderChart(cfg opt, lines []string, info []lineData, maxs lineData) []stri
 }
 
 func getTermWidth() int {
-	// use: "tput cols" output because $COLUMNS is not accessible in programs
-	width := defaultTermWidth
-	// TODO: use "tput cols" output
+	// "tput cols"/"stty size"/$COLUMNS is not working in programs
+	width, _, _ := term.GetSize(int(os.Stdout.Fd()))
+
+	if width == 0 {
+		width = defaultTermWidth
+	}
+	if width > maxTermWidth {
+		width = maxTermWidth
+	}
 
 	return width
 }
