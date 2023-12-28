@@ -129,7 +129,7 @@ func renderChart(cfg opt, lines []string, info []lineData, maxs lineData) []stri
 		if l := utf8.RuneCountInString(line); l < maxs.width {
 			line += strings.Repeat(" ", maxs.width-l)
 		}
-		res[i] = line + "\t" + chart // TODO: maybe better to solve with tabs in line
+		res[i] = line + "\t" + chart
 	}
 	return res
 }
