@@ -118,11 +118,18 @@ func getAllMax(info []lineData) lineData {
 func addChart(cfg opt, lines []string, info []lineData, maxs lineData) []string {
 	termWidth := getTermWidth()
 	lines = alignTextLines(lines, maxs)
-	chartWidth := termWidth - maxs.width
-	if chartWidth < minChartWidth {
-		chartWidth = minChartWidth
+
+	chartWidth := 0
+	if cfg.width > 0 {
+		chartWidth = cfg.width
+	} else {
+		chartWidth = termWidth - maxs.width
+		if chartWidth < minChartWidth {
+			chartWidth = minChartWidth
+		}
 	}
-	barChart := renderChart(cfg, chartWidth, info, maxs)
+
+	barChart := renderChart(cfg.barChar, chartWidth, info, maxs)
 
 	res := make([]string, len(lines))
 	for i := range lines {
@@ -158,7 +165,7 @@ func alignTextLines(lines []string, maxs lineData) []string {
 	return res
 }
 
-func renderChart(cfg opt, width int, info []lineData, maxs lineData) []string {
+func renderChart(barChar string, width int, info []lineData, maxs lineData) []string {
 	canvas := tcg.NewBuffer(width, len(info))
 
 	for i, item := range info {
@@ -166,10 +173,10 @@ func renderChart(cfg opt, width int, info []lineData, maxs lineData) []string {
 		canvas.HLine(0, i, chartWidth, tcg.Black)
 	}
 
-	firstRune, _ := utf8.DecodeRuneInString(cfg.barChar)
+	firstRune, _ := utf8.DecodeRuneInString(barChar)
 	mode, err := tcg.NewPixelMode(1, 1, []rune{' ', firstRune})
 	if err != nil {
-		printErr("create pixel mode for %q: %s\n", cfg.barChar, err)
+		printErr("create pixel mode for %q: %s\n", barChar, err)
 	}
 
 	res := canvas.RenderAsStrings(*mode)
