@@ -16,6 +16,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/msoap/byline"
+	"github.com/msoap/tcg"
 	"golang.org/x/term"
 )
 
@@ -50,8 +51,8 @@ func main() {
 	fmt.Println(strings.Join(chartLines, "\n"))
 }
 
-func printErr(frmt string, err error) {
-	fmt.Fprintf(os.Stderr, frmt, err)
+func printErr(frmt string, args ...any) {
+	fmt.Fprintf(os.Stderr, frmt, args...)
 	os.Exit(1)
 }
 
@@ -67,6 +68,10 @@ func parseArgs() opt {
 	if *doHelp {
 		flag.PrintDefaults()
 		os.Exit(0)
+	}
+
+	if len(res.barChar) == 0 {
+		printErr("bar chart character is empty\n")
 	}
 
 	return res
@@ -154,16 +159,22 @@ func alignTextLines(lines []string, maxs lineData) []string {
 }
 
 func renderChart(cfg opt, width int, info []lineData, maxs lineData) []string {
-	res := make([]string, len(info))
+	canvas := tcg.NewBuffer(width, len(info))
+
 	for i, item := range info {
 		chartWidth := int(float64(item.num) / float64(maxs.num) * float64(width))
-		if chartWidth == 0 {
-			res[i] = ""
-			continue
-		}
+		canvas.HLine(0, i, chartWidth, tcg.Black)
+	}
 
-		chart := strings.Repeat(cfg.barChar, chartWidth)
-		res[i] = chart
+	firstRune, _ := utf8.DecodeRuneInString(cfg.barChar)
+	mode, err := tcg.NewPixelMode(1, 1, []rune{' ', firstRune})
+	if err != nil {
+		printErr("create pixel mode for %q: %s\n", cfg.barChar, err)
+	}
+
+	res := canvas.RenderAsStrings(*mode)
+	if len(info) != len(res) {
+		printErr("something went wrong, len(info) != len(res), %d != %d\n", len(info), len(res))
 	}
 
 	return res
