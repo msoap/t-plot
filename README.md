@@ -8,8 +8,14 @@ By default it's plot chart from stdin, one number per line and add bar chart to 
 ```bash
 go install github.com/msoap/t-plot@latest
 ```
+## Options
 
-## Usage
+ - `-k N` - column number for plot (default: 1)
+ - `-c "#"` - chart symbol (default: `#`)
+ - `-w N` - width of chart (default: rest of terminal width)
+ - `-h` - print help and exit
+
+## Examples
 
 ```bash
 # plot chart from stdin by file size in ls (column 5)
@@ -18,13 +24,6 @@ $ ls -l | t-plot -k 5
 # chart by file sizes from du
 $ du -s some_path/* | t-plot
 ```
-
-## Options
-
- - `-k N` - column number for plot (default: 1)
- - `-c "#"` - chart symbol (default: `#`)
- - `-w N` - width of chart (default: rest of terminal width)
- - `-h` - print help and exit
 
 ## Screenshot
 
