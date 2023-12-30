@@ -25,3 +25,7 @@ $ du -s some_path/* | t-plot
  - `-c "#"` - chart symbol (default: `#`)
  - `-w N` - width of chart (default: rest of terminal width)
  - `-h` - print help and exit
+
+## Screenshot
+
+<img width="824" alt="image" src="https://github.com/msoap/t-plot/assets/844117/3be0f2db-d272-4cc6-a73e-ab5172ba18f5">
