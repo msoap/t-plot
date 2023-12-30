@@ -22,6 +22,7 @@ import (
 const (
 	defaultTermWidth = 80
 	maxTermWidth     = 150
+	minChartWidth    = 10
 )
 
 type opt struct {
@@ -45,7 +46,7 @@ func main() {
 
 	info := getTextInfo(cfg, lines)
 	maxs := getAllMax(info)
-	chartLines := renderChart(cfg, lines, info, maxs)
+	chartLines := addChart(cfg, lines, info, maxs)
 	fmt.Println(strings.Join(chartLines, "\n"))
 }
 
@@ -109,25 +110,18 @@ func getAllMax(info []lineData) lineData {
 	return lineData{maxNum, maxWidth}
 }
 
-func renderChart(cfg opt, lines []string, info []lineData, maxs lineData) []string {
+func addChart(cfg opt, lines []string, info []lineData, maxs lineData) []string {
 	termWidth := getTermWidth()
 	lines = alignTextLines(lines, maxs)
+	chartWidth := termWidth - maxs.width
+	if chartWidth < minChartWidth {
+		chartWidth = minChartWidth
+	}
+	barChart := renderChart(cfg, chartWidth, info, maxs)
 
 	res := make([]string, len(lines))
-	for i, line := range lines {
-		if info[i].num == 0 {
-			res[i] = line
-			continue
-		}
-
-		chartWidth := int(float64(info[i].num) / float64(maxs.num) * float64(termWidth-info[i].width))
-		if chartWidth == 0 {
-			res[i] = line
-			continue
-		}
-
-		chart := strings.Repeat(cfg.barChar, chartWidth)
-		res[i] = line + "\t" + chart
+	for i := range lines {
+		res[i] = lines[i] + "\t" + barChart[i]
 	}
 
 	return res
@@ -155,5 +149,22 @@ func alignTextLines(lines []string, maxs lineData) []string {
 		}
 		res[i] = line
 	}
+
+	return res
+}
+
+func renderChart(cfg opt, width int, info []lineData, maxs lineData) []string {
+	res := make([]string, len(info))
+	for i, item := range info {
+		chartWidth := int(float64(item.num) / float64(maxs.num) * float64(width))
+		if chartWidth == 0 {
+			res[i] = ""
+			continue
+		}
+
+		chart := strings.Repeat(cfg.barChar, chartWidth)
+		res[i] = chart
+	}
+
 	return res
 }
