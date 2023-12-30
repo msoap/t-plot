@@ -99,6 +99,7 @@ func getTextInfo(cfg opt, lines []string) []lineData {
 
 		res[i].num, _ = strconv.Atoi(fields[cfg.columnN-1])
 	}
+
 	return res
 }
 
@@ -112,6 +113,7 @@ func getAllMax(info []lineData) lineData {
 			maxWidth = item.width
 		}
 	}
+
 	return lineData{maxNum, maxWidth}
 }
 

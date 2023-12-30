@@ -22,6 +22,6 @@ $ du -s some_path/* | t-plot
 ## Options
 
  - `-k N` - column number for plot (default: 1)
- - `-c "#"` - chart character (default: `#`)
- - `-w N` - width of chart (default: rest of terminal width using $COLUMNS)
+ - `-c "#"` - chart symbol (default: `#`)
+ - `-w N` - width of chart (default: rest of terminal width)
  - `-h` - print help and exit
