@@ -21,7 +21,7 @@ import (
 
 const (
 	defaultTermWidth = 80
-	maxTermWidth     = 130
+	maxTermWidth     = 150
 )
 
 type opt struct {
@@ -111,6 +111,7 @@ func getAllMax(info []lineData) lineData {
 
 func renderChart(cfg opt, lines []string, info []lineData, maxs lineData) []string {
 	termWidth := getTermWidth()
+	lines = alignTextLines(lines, maxs)
 
 	res := make([]string, len(lines))
 	for i, line := range lines {
@@ -126,11 +127,9 @@ func renderChart(cfg opt, lines []string, info []lineData, maxs lineData) []stri
 		}
 
 		chart := strings.Repeat(cfg.barChar, chartWidth)
-		if l := utf8.RuneCountInString(line); l < maxs.width {
-			line += strings.Repeat(" ", maxs.width-l)
-		}
 		res[i] = line + "\t" + chart
 	}
+
 	return res
 }
 
@@ -146,4 +145,15 @@ func getTermWidth() int {
 	}
 
 	return width
+}
+
+func alignTextLines(lines []string, maxs lineData) []string {
+	res := make([]string, len(lines))
+	for i, line := range lines {
+		if l := utf8.RuneCountInString(line); l < maxs.width {
+			line += strings.Repeat(" ", maxs.width-l)
+		}
+		res[i] = line
+	}
+	return res
 }
