@@ -24,6 +24,7 @@ const (
 	defaultTermWidth = 80
 	maxTermWidth     = 150
 	minChartWidth    = 10
+	widthReserve     = 8
 )
 
 type opt struct {
@@ -125,7 +126,7 @@ func addChart(cfg opt, lines []string, info []lineData, maxs lineData) []string 
 	if cfg.width > 0 {
 		chartWidth = cfg.width
 	} else {
-		chartWidth = termWidth - maxs.width
+		chartWidth = termWidth - maxs.width - widthReserve
 		if chartWidth < minChartWidth {
 			chartWidth = minChartWidth
 		}
