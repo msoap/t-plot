@@ -1,3 +1,5 @@
+[![Go](https://github.com/msoap/t-plot/actions/workflows/go.yml/badge.svg)](https://github.com/msoap/t-plot/actions/workflows/go.yml)
+
 # t-plot
 
 It's simple utility for plot bar chart from numbers in the terminal.
