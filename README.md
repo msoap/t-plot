@@ -13,6 +13,7 @@ go install github.com/msoap/t-plot@latest
 ## Options
 
  - `-k N` - column number for plot (default: 1)
+ - `-s ...` - style, "bar-simple", "bar-horizontal-1px", "bar-vertical-1px" (default: "bar-simple")
  - `-c "#"` - chart symbol (default: `#`)
  - `-w N` - width of chart (default: rest of terminal width)
  - `-h` - print help and exit

@@ -1,6 +1,7 @@
 /*
 Options:
   - `-k N`   - column number for plot (default: 1)
+  - `-s ...` - style, "bar-simple", "bar-horizontal-1px", "bar-vertical-1px" (default: "bar-simple")
   - `-c "#"` - chart character (default: `#`)
   - `-w N`   - width of chart (default: rest of terminal width using $COLUMNS)
   - `-h`     - print help and exit
@@ -17,24 +18,26 @@ import (
 
 	"github.com/msoap/byline"
 	"github.com/msoap/tcg"
+	"github.com/msoap/tcg/turtle"
 	"golang.org/x/term"
 )
 
 const (
 	defaultTermWidth = 80
-	maxTermWidth     = 150
+	maxTermWidth     = 120
 	minChartWidth    = 10
 	widthReserve     = 8
 )
 
 type opt struct {
+	style   chartStyle
 	columnN int
 	barChar string
 	width   int
 }
 
 type lineData struct {
-	num   int
+	num   float64
 	width int
 }
 
@@ -48,7 +51,7 @@ func main() {
 
 	info := getTextInfo(cfg, lines)
 	maxs := getAllMax(info)
-	chartLines := addChart(cfg, lines, info, maxs)
+	chartLines := createChart(cfg, lines, info, maxs)
 	fmt.Println(strings.Join(chartLines, "\n"))
 }
 
@@ -61,8 +64,9 @@ func parseArgs() opt {
 	res := opt{}
 
 	doHelp := flag.Bool("h", false, "print help and exit")
+	flag.Var(&res.style, "s", `style, "bar-simple", "bar-horizontal-1px", "bar-vertical-1px" (default: "bar-simple")`)
 	flag.IntVar(&res.columnN, "k", 1, "column number for plot")
-	flag.StringVar(&res.barChar, "c", "#", "bar chart character")
+	flag.StringVar(&res.barChar, "c", "■", "bar chart character")
 	flag.IntVar(&res.width, "w", 0, "width of chart")
 	flag.Parse()
 
@@ -71,7 +75,7 @@ func parseArgs() opt {
 		os.Exit(0)
 	}
 
-	if len(res.barChar) == 0 {
+	if len(res.barChar) == 0 && res.style == csBarSimple {
 		printErr("bar chart character is empty\n")
 	}
 
@@ -82,7 +86,6 @@ func readStdin() ([]string, error) {
 	return byline.
 		NewReader(os.Stdin).
 		MapString(func(in string) string {
-			// strip trailing newline
 			return strings.TrimRight(in, "\n")
 		}).
 		ReadAllSliceString()
@@ -98,14 +101,14 @@ func getTextInfo(cfg opt, lines []string) []lineData {
 			continue
 		}
 
-		res[i].num, _ = strconv.Atoi(fields[cfg.columnN-1])
+		res[i].num, _ = strconv.ParseFloat(fields[cfg.columnN-1], 64)
 	}
 
 	return res
 }
 
 func getAllMax(info []lineData) lineData {
-	maxNum, maxWidth := 0, 0
+	maxNum, maxWidth := 0.0, 0
 	for _, item := range info {
 		if item.num > maxNum {
 			maxNum = item.num
@@ -118,9 +121,8 @@ func getAllMax(info []lineData) lineData {
 	return lineData{maxNum, maxWidth}
 }
 
-func addChart(cfg opt, lines []string, info []lineData, maxs lineData) []string {
+func createChart(cfg opt, lines []string, info []lineData, maxs lineData) []string {
 	termWidth := getTermWidth()
-	lines = alignTextLines(lines, maxs)
 
 	chartWidth := 0
 	if cfg.width > 0 {
@@ -132,14 +134,25 @@ func addChart(cfg opt, lines []string, info []lineData, maxs lineData) []string 
 		}
 	}
 
-	barChart := renderChart(cfg.barChar, chartWidth, info, maxs)
+	switch cfg.style {
+	case csBarSimple:
+		barChart := renderChartSimple(cfg.barChar, chartWidth, info, maxs)
+		lines = alignTextLines(lines, maxs)
 
-	res := make([]string, len(lines))
-	for i := range lines {
-		res[i] = lines[i] + "\t" + barChart[i]
+		res := make([]string, len(lines))
+		for i := range lines {
+			res[i] = lines[i] + "\t" + barChart[i]
+		}
+
+		return res
+	case csBarHorizontal1px:
+		return renderChartBarHorizontal1px(chartWidth, info, maxs)
+	case csBarVertical1px:
+		return renderChartVertical1px(info, maxs)
+	default:
+		printErr("style %v is not implemented yet\n", cfg.style)
+		return nil
 	}
-
-	return res
 }
 
 func getTermWidth() int {
@@ -168,7 +181,7 @@ func alignTextLines(lines []string, maxs lineData) []string {
 	return res
 }
 
-func renderChart(barChar string, width int, info []lineData, maxs lineData) []string {
+func renderChartSimple(barChar string, width int, info []lineData, maxs lineData) []string {
 	canvas := tcg.NewBuffer(width, len(info))
 
 	for i, item := range info {
@@ -186,6 +199,37 @@ func renderChart(barChar string, width int, info []lineData, maxs lineData) []st
 	if len(info) != len(res) {
 		printErr("something went wrong, len(info) != len(res), %d != %d\n", len(info), len(res))
 	}
+
+	return res
+}
+
+func renderChartBarHorizontal1px(width int, info []lineData, maxs lineData) []string {
+	tcgMode := tcg.Mode2x3
+	canvas := tcg.NewBuffer(width*tcgMode.Width(), len(info))
+
+	for i, item := range info {
+		barLen := int(float64(item.num) / float64(maxs.num) * float64(width*tcgMode.Width()))
+		canvas.HLine(0, i, barLen, tcg.Black)
+	}
+
+	res := canvas.RenderAsStrings(tcgMode)
+
+	return res
+}
+
+func renderChartVertical1px(info []lineData, maxs lineData) []string {
+	const heightInChars = 10
+	tcgMode := tcg.Mode2x3
+	heightInPx := tcgMode.Height() * heightInChars
+	canvas := tcg.NewBuffer(len(info), heightInPx)
+
+	trtl := turtle.New(&canvas)
+	for i, item := range info {
+		barLen := int(float64(item.num) / float64(maxs.num) * float64(heightInPx))
+		trtl.GoToAbs(i, heightInPx).Up(barLen)
+	}
+
+	res := canvas.RenderAsStrings(tcgMode)
 
 	return res
 }
