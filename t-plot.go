@@ -1,6 +1,6 @@
 /*
 Options:
-  - `-k N`   - column number for plot (default: 1)
+  - `-k N`   - column number for plot, starting from 1, by default try to detect the first column of numbers
   - `-s ...` - style, "bar-simple", "bar-horizontal-1px", "bar-vertical-1px" (default: "bar-simple")
   - `-c "#"` - chart character (default: `#`)
   - `-w N`   - width of chart (default: rest of terminal width using $COLUMNS)
@@ -12,10 +12,12 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode/utf8"
 
+	"github.com/mattn/go-runewidth"
 	"github.com/msoap/byline"
 	"github.com/msoap/tcg"
 	"github.com/msoap/tcg/turtle"
@@ -65,7 +67,7 @@ func parseArgs() opt {
 
 	doHelp := flag.Bool("h", false, "print help and exit")
 	flag.Var(&res.style, "s", `style, "bar-simple", "bar-horizontal-1px", "bar-vertical-1px" (default: "bar-simple")`)
-	flag.IntVar(&res.columnN, "k", 1, "column number for plot")
+	flag.IntVar(&res.columnN, "k", 0, "column number for plot, starting from 1, by default try to detect the first column of numbers")
 	flag.StringVar(&res.barChar, "c", "■", "bar chart character")
 	flag.IntVar(&res.width, "w", 0, "width of chart")
 	flag.Parse()
@@ -93,18 +95,87 @@ func readStdin() ([]string, error) {
 
 func getTextInfo(cfg opt, lines []string) []lineData {
 	res := make([]lineData, len(lines))
+	fieldsList := make([][]string, len(lines))
 	for i, line := range lines {
-		res[i].width = utf8.RuneCountInString(line) // TODO: use graphic symbol length
+		fieldsList[i] = strings.Fields(line)
+	}
 
-		fields := strings.Fields(line)
-		if cfg.columnN > len(fields) {
+	columnN := cfg.columnN
+	if columnN == 0 {
+		columnN = detectNumbersColumn(fieldsList)
+	}
+	for i, line := range lines {
+		res[i].width = runewidth.StringWidth(line)
+
+		fields := fieldsList[i]
+		if columnN > len(fields) {
 			continue
 		}
 
-		res[i].num, _ = strconv.ParseFloat(fields[cfg.columnN-1], 64)
+		res[i].num, _ = strconv.ParseFloat(fields[columnN-1], 64)
 	}
 
 	return res
+}
+
+// detectNumbersColumn tries to find the first column with numbers
+// meaning that most of its values can be parsed as float64
+// and returns its number (starting from 1)
+func detectNumbersColumn(fieldsList [][]string) int {
+	if len(fieldsList) == 0 {
+		return 1
+	}
+
+	numCols := 0
+	for _, fields := range fieldsList {
+		if len(fields) > numCols {
+			numCols = len(fields)
+		}
+	}
+	if numCols == 0 {
+		return 1
+	}
+
+	type colCount struct {
+		col   int // 0-based column index
+		count int
+	}
+
+	counts := make([]colCount, 0, numCols)
+
+	for col := 0; col < numCols; col++ {
+		numericCount := 0
+
+		for row := 0; row < len(fieldsList); row++ {
+			// Skip if row doesn't have enough columns
+			if col >= len(fieldsList[row]) {
+				continue
+			}
+
+			value := strings.TrimSpace(fieldsList[row][col])
+
+			if value == "" {
+				continue
+			}
+
+			if _, err := strconv.ParseFloat(value, 64); err == nil {
+				numericCount++
+			}
+		}
+
+		counts = append(counts, colCount{col: col, count: numericCount})
+	}
+
+	// Sort by numeric counts in descending order
+	slices.SortStableFunc(counts, func(a, b colCount) int {
+		return b.count - a.count
+	})
+
+	if len(counts) > 0 {
+		return counts[0].col + 1
+	}
+
+	return 1 // Default to first column if no numeric columns found
 }
 
 func getAllMax(info []lineData) lineData {

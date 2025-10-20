@@ -12,7 +12,7 @@ go install github.com/msoap/t-plot@latest
 ```
 ## Options
 
- - `-k N` - column number for plot (default: 1)
+ - `-k N` - column number for plot, starting from 1, by default try to detect the first column of numbers
  - `-s ...` - style, "bar-simple", "bar-horizontal-1px", "bar-vertical-1px" (default: "bar-simple")
  - `-c "#"` - chart symbol (default: `#`)
  - `-w N` - width of chart (default: rest of terminal width)
