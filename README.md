@@ -16,6 +16,7 @@ go install github.com/msoap/t-plot@latest
  - `-s ...` - style, "bar-simple", "bar-horizontal-1px", "bar-vertical-1px" (default: "bar-simple")
  - `-c "#"` - chart symbol (default: `#`)
  - `-w N` - width of chart (default: rest of terminal width)
+ - `-skip regex` - skip lines matching regex
  - `-h` - print help and exit
 
 ## Examples

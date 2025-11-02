@@ -4,7 +4,8 @@ Options:
   - `-s ...` - style, "bar-simple", "bar-horizontal-1px", "bar-vertical-1px" (default: "bar-simple")
   - `-c "#"` - chart character (default: `#`)
   - `-w N`   - width of chart (default: rest of terminal width using $COLUMNS)
-  - `-h`     - print help and exit
+  - `-skip regex` - skip lines matching regex
+  - `-h` - print help and exit
 */
 package main
 
@@ -12,6 +13,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -36,9 +38,11 @@ type opt struct {
 	columnN int
 	barChar string
 	width   int
+	skipReg *regexp.Regexp
 }
 
 type lineData struct {
+	line  string
 	num   float64
 	width int
 }
@@ -52,7 +56,7 @@ func main() {
 	}
 
 	info := getTextInfo(cfg, lines)
-	maxs := getAllMax(info)
+	maxs := getAllMax(cfg.skipReg, info)
 	chartLines := createChart(cfg, lines, info, maxs)
 	fmt.Println(strings.Join(chartLines, "\n"))
 }
@@ -64,12 +68,14 @@ func printErr(frmt string, args ...any) {
 
 func parseArgs() opt {
 	res := opt{}
+	skipReg := ""
 
 	doHelp := flag.Bool("h", false, "print help and exit")
 	flag.Var(&res.style, "s", `style, "bar-simple", "bar-horizontal-1px", "bar-vertical-1px" (default: "bar-simple")`)
 	flag.IntVar(&res.columnN, "k", 0, "column number for plot, starting from 1, by default try to detect the first column of numbers")
 	flag.StringVar(&res.barChar, "c", "■", "bar chart character")
 	flag.IntVar(&res.width, "w", 0, "width of chart")
+	flag.StringVar(&skipReg, "skip", "", "skip lines matching regex")
 	flag.Parse()
 
 	if *doHelp {
@@ -79,6 +85,14 @@ func parseArgs() opt {
 
 	if len(res.barChar) == 0 && res.style == csBarSimple {
 		printErr("bar chart character is empty\n")
+	}
+
+	if skipReg != "" {
+		var err error
+		res.skipReg, err = regexp.Compile(skipReg)
+		if err != nil {
+			printErr("compile skip regex %q: %s\n", skipReg, err)
+		}
 	}
 
 	return res
@@ -105,6 +119,7 @@ func getTextInfo(cfg opt, lines []string) []lineData {
 		columnN = detectNumbersColumn(fieldsList)
 	}
 	for i, line := range lines {
+		res[i].line = line
 		res[i].width = runewidth.StringWidth(line)
 
 		fields := fieldsList[i]
@@ -178,9 +193,12 @@ func detectNumbersColumn(fieldsList [][]string) int {
 	return 1 // Default to first column if no numeric columns found
 }
 
-func getAllMax(info []lineData) lineData {
+func getAllMax(skipReg *regexp.Regexp, info []lineData) lineData {
 	maxNum, maxWidth := 0.0, 0
 	for _, item := range info {
+		if skipReg != nil && skipReg.MatchString(item.line) {
+			continue
+		}
 		if item.num > maxNum {
 			maxNum = item.num
 		}
@@ -189,7 +207,7 @@ func getAllMax(info []lineData) lineData {
 		}
 	}
 
-	return lineData{maxNum, maxWidth}
+	return lineData{"", maxNum, maxWidth}
 }
 
 func createChart(cfg opt, lines []string, info []lineData, maxs lineData) []string {
@@ -212,6 +230,10 @@ func createChart(cfg opt, lines []string, info []lineData, maxs lineData) []stri
 
 		res := make([]string, len(lines))
 		for i := range lines {
+			if cfg.skipReg != nil && cfg.skipReg.MatchString(lines[i]) {
+				res[i] = lines[i]
+				continue
+			}
 			res[i] = lines[i] + "\t" + barChart[i]
 		}
 
